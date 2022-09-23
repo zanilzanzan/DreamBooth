@@ -21,6 +21,7 @@ from pytorch_lightning.utilities import rank_zero_info
 from ldm.data.base import Txt2ImgIterableBaseDataset
 from ldm.util import instantiate_from_config
 
+
 def load_model_from_config(config, ckpt, verbose=False):
     print(f"Loading model from {ckpt}")
     pl_sd = torch.load(ckpt, map_location="cpu")
@@ -37,6 +38,7 @@ def load_model_from_config(config, ckpt, verbose=False):
 
     model.cuda()
     return model
+
 
 def get_parser(**parser_kwargs):
     def str2bool(v):
@@ -88,8 +90,7 @@ def get_parser(**parser_kwargs):
     )
     parser.add_argument(
         "--no-test",
-        type=str2bool,
-        const=True,
+        type=bool,
         default=False,
         nargs="?",
         help="disable test",

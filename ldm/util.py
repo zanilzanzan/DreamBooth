@@ -1,16 +1,15 @@
+import os
 import importlib
 
-import torch
-import numpy as np
+from queue import Queue
 from collections import abc
-from einops import rearrange
-from functools import partial
 
 import multiprocessing as mp
 from threading import Thread
-from queue import Queue
-
 from inspect import isfunction
+
+import torch
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 
@@ -22,6 +21,8 @@ def log_txt_as_img(wh, xc, size=10):
     for bi in range(b):
         txt = Image.new("RGB", wh, color="white")
         draw = ImageDraw.Draw(txt)
+        script_src = os.path.dirname(os.path.realpath(__file__))
+        font = ImageFont.truetype(os.path.join(script_src, 'data/fonts/DejaVuSans.ttf'), size=12)
         font = ImageFont.truetype('data/DejaVuSans.ttf', size=size)
         nc = int(40 * (wh[0] / 256))
         lines = "\n".join(xc[bi][start:start + nc] for start in range(0, len(xc[bi]), nc))
