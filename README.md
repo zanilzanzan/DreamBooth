@@ -97,7 +97,7 @@ Training sesh on vast.ai costs ~$1
 
 3. Go in and open a terminal sesh
 
-4. Clone this repo git clone git@github.com:zanilzanzan/DreamBooth.git
+4. Clone this repository: `git clone https://github.com/zanilzanzan/DreamBooth.git`
 
 5. cd into the directory cd Dreambooth-Stable-Diffusion and make a conda environment for it conda env create -f environment.yaml this will take a lil' while
 
