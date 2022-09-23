@@ -23,7 +23,6 @@ def log_txt_as_img(wh, xc, size=10):
         draw = ImageDraw.Draw(txt)
         script_src = os.path.dirname(os.path.realpath(__file__))
         font = ImageFont.truetype(os.path.join(script_src, 'data/fonts/DejaVuSans.ttf'), size=12)
-        font = ImageFont.truetype('data/DejaVuSans.ttf', size=size)
         nc = int(40 * (wh[0] / 256))
         lines = "\n".join(xc[bi][start:start + nc] for start in range(0, len(xc[bi]), nc))
 
