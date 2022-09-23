@@ -90,7 +90,8 @@ def get_parser(**parser_kwargs):
     )
     parser.add_argument(
         "--no-test",
-        type=bool,
+        type=str2bool,
+        const=True,
         default=False,
         nargs="?",
         help="disable test",
