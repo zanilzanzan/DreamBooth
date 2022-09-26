@@ -4,5 +4,5 @@ cd ..
 apt -y install gcc unzip zip
 conda env create -f environment.yaml
 conda init bash
-source ~/.bashrc
 reset
+source ~/.bashrc
