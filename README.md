@@ -89,19 +89,21 @@ Generated images with prompt ```a dog on top of sks container```:
 
 ## Run a training session on a VAST.AI instance
 
-Training sesh on vast.ai costs ~$1
+**Important note:** The instructions were directly taken from [this comment](https://github.com/XavierXiao/Dreambooth-Stable-Diffusion/issues/4#issuecomment-1246140407). I have recently experimented with the procedure. In a few days, I will be summarizing all the required steps and update the code for a smooth training. Please stay tuned.
+
+Training session on VAST.AI costs around $1
 
 1- Prepare your training and regularization data in advance
 
 2- Pick an (when finding an instance, make sure to select a PyTorch instance config) instance with at least 1 A6000 (cheapest that meets the VRAM reqs, I've found - and 1 is good to start with since you might be spending more time figuring out how to set it up than actually training it). Make sure the download (and upload) speeds are decent, like >100mbps
 
-3. Go in and open a terminal sesh
+3. Go in and open a terminal session
 
 4. Clone this repository: `git clone https://github.com/zanilzanzan/DreamBooth.git`
 
-5. cd into the directory cd Dreambooth-Stable-Diffusion and make a conda environment for it conda env create -f environment.yaml this will take a lil' while
+5. cd into the directory cd Dreambooth-Stable-Diffusion and make a conda environment for it `conda env create -f environment.yaml` this will take a lil' while
 
-6. While that's happening, create a new terminal instance and pull down the SD EMA model, make sure you're in the project directory (Dreambooth-Stable...). Easiest way to do this is download it from hugging face wget --http-user=USERNAME --http-password=PASSWORD https://huggingface.co/CompVis/stable-diffusion-v-1-4-original/resolve/main/sd-v1-4-full-ema.ckpt, you should use an API key for a more secure method of doing so, but just for the ease of use for anyone unfamiliar
+6. While that's happening, create a new terminal instance and pull down the SD EMA model, make sure you're in the project directory (Dreambooth-Stable...). Easiest way to do this is download it from hugging face `wget --http-user=USERNAME --http-password=PASSWORD https://huggingface.co/CompVis/stable-diffusion-v-1-4-original/resolve/main/sd-v1-4-full-ema.ckpt`, you should use an API key for a more secure method of doing so, but just for the ease of use for anyone unfamiliar
 
 7. While these two things are going on, you can use the time to go and upload your training/regularization data into some new subfolders in the project. Something like /Dreambooth-Stable-Diffusion/training or something
 
@@ -109,7 +111,7 @@ Training sesh on vast.ai costs ~$1
 
 9. Navigate to the project directory again (Dreambooth-Stable...) if you aren't there already, and activate the environment with conda activate ldx < or whatever the environment was called
 
-10. You should be ready to train! python main.py --base configs/stable-diffusion/v1-finetune_unfrozen.yaml -t --actual_resume sd-v1-4-full-ema.ckpt -n <whatever you want this training to be called> --gpus 0, --data_root <the relative path to your training images> --reg_data_root <the relative path to your regularization images> --class_word <the word you used to get for regularization data>. Note that this will map your training to the default sks prompt, so go change that in the personalized.py file if you want.
+10. You should be ready to train! `python main.py --base configs/stable-diffusion/v1-finetune_unfrozen.yaml -t --actual_resume sd-v1-4-full-ema.ckpt -n <whatever you want this training to be called> --gpus 0, --data_root <the relative path to your training images> --reg_data_root <the relative path to your regularization images> --class_word <the word you used to get for regularization data>`. Note that this will map your training to the default `sks` prompt, so go change that in the personalized.py file if you want.
 
 12. Let it roll, should be a bit over 1 it/s on 1 A6000.
 
