@@ -1,22 +1,26 @@
-import argparse, os, sys, glob
-from omegaconf import OmegaConf
+import os
+import glob
+import argparse
 from PIL import Image
 from tqdm import tqdm
-import numpy as np
-import torch
+from omegaconf import OmegaConf
 from main import instantiate_from_config
 from ldm.models.diffusion.ddim import DDIMSampler
+
+import numpy as np
+import torch
+import torch.nn.functional as F
 
 
 def make_batch(image, mask, device):
     image = np.array(Image.open(image).convert("RGB"))
     image = image.astype(np.float32)/255.0
-    image = image[None].transpose(0,3,1,2)
+    image = image[None].transpose(0, 3, 1, 2)
     image = torch.from_numpy(image)
 
     mask = np.array(Image.open(mask).convert("L"))
     mask = mask.astype(np.float32)/255.0
-    mask = mask[None,None]
+    mask = mask[None, None]
     mask[mask < 0.5] = 0
     mask[mask >= 0.5] = 1
     mask = torch.from_numpy(mask)
@@ -72,10 +76,9 @@ if __name__ == "__main__":
                 outpath = os.path.join(opt.outdir, os.path.split(image)[1])
                 batch = make_batch(image, mask, device=device)
 
-                # encode masked image and concat downsampled mask
+                # encode masked image and concat down-sampled mask
                 c = model.cond_stage_model.encode(batch["masked_image"])
-                cc = torch.nn.functional.interpolate(batch["mask"],
-                                                     size=c.shape[-2:])
+                cc = F.interpolate(batch["mask"], size=c.shape[-2:])
                 c = torch.cat((c, cc), dim=1)
 
                 shape = (c.shape[1]-1,)+c.shape[2:]
@@ -94,5 +97,5 @@ if __name__ == "__main__":
                                               min=0.0, max=1.0)
 
                 inpainted = (1-mask)*image+mask*predicted_image
-                inpainted = inpainted.cpu().numpy().transpose(0,2,3,1)[0]*255
+                inpainted = inpainted.cpu().numpy().transpose(0, 2, 3, 1)[0]*255
                 Image.fromarray(inpainted.astype(np.uint8)).save(outpath)

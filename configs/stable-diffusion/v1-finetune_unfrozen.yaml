@@ -117,4 +117,4 @@ lightning:
 
   trainer:
     benchmark: True
-    max_steps: 1200
+    max_steps: 1200  # For portraits, the results turn out pretty good when this is set to 3000

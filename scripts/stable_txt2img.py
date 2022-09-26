@@ -1,16 +1,18 @@
-import argparse, os, sys, glob
-import torch
-import numpy as np
-from omegaconf import OmegaConf
-from PIL import Image
-from tqdm import tqdm, trange
+import os
+import time
+import argparse
 from itertools import islice
 from einops import rearrange
-from torchvision.utils import make_grid, save_image
-import time
-from pytorch_lightning import seed_everything
+from tqdm import tqdm, trange
+from omegaconf import OmegaConf
+from contextlib import nullcontext
+from PIL import Image
+import numpy as np
+
+import torch
 from torch import autocast
-from contextlib import contextmanager, nullcontext
+from torchvision.utils import make_grid, save_image
+from pytorch_lightning import seed_everything
 
 from ldm.util import instantiate_from_config
 from ldm.models.diffusion.ddim import DDIMSampler
@@ -175,7 +177,6 @@ def main():
         default="autocast"
     )
 
-
     parser.add_argument(
         "--embedding_path", 
         type=str, 
@@ -193,7 +194,7 @@ def main():
 
     config = OmegaConf.load(f"{opt.config}")
     model = load_model_from_config(config, f"{opt.ckpt}")
-    #model.embedding_manager.load(opt.embedding_path)
+    # model.embedding_manager.load(opt.embedding_path)
 
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     model = model.to(device)
@@ -228,11 +229,10 @@ def main():
     if opt.fixed_code:
         start_code = torch.randn([opt.n_samples, opt.C, opt.H // opt.f, opt.W // opt.f], device=device)
 
-    precision_scope = autocast if opt.precision=="autocast" else nullcontext
+    precision_scope = autocast if opt.precision == "autocast" else nullcontext
     with torch.no_grad():
         with precision_scope("cuda"):
             with model.ema_scope():
-                tic = time.time()
                 all_samples = list()
                 for n in trange(opt.n_iter, desc="Sampling"):
                     for prompts in tqdm(data, desc="data"):
@@ -279,13 +279,8 @@ def main():
                     grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
                     Image.fromarray(grid.astype(np.uint8)).save(os.path.join(outpath, f'{prompt.replace(" ", "-")}-{grid_count:04}.jpg'))
                     grid_count += 1
-                    
-                    
 
-                toc = time.time()
-
-    print(f"Your samples are ready and waiting for you here: \n{outpath} \n"
-          f" \nEnjoy.")
+    print(f"[SUCCESS] Your samples are ready and waiting for you here: \n{outpath}")
 
 
 if __name__ == "__main__":

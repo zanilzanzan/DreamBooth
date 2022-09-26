@@ -1,14 +1,15 @@
 from ldm.modules.encoders.modules import FrozenCLIPEmbedder, BERTEmbedder
 from ldm.modules.embedding_manager import EmbeddingManager
 
-import argparse, os
+import argparse
 from functools import partial
 
 import torch
 
+
 def get_placeholder_loop(placeholder_string, embedder, is_sd):
-    
-    new_placeholder   = None
+
+    new_placeholder = None
     
     while True:
         if new_placeholder is None:
@@ -20,7 +21,8 @@ def get_placeholder_loop(placeholder_string, embedder, is_sd):
 
         if token is not None:
             return new_placeholder, token
-            
+
+
 def get_clip_token_for_string(tokenizer, string):
     batch_encoding = tokenizer(string, truncation=True, max_length=77, return_length=True,
                                return_overflowing_tokens=False, padding="max_length", return_tensors="pt")
@@ -30,6 +32,7 @@ def get_clip_token_for_string(tokenizer, string):
         return tokens[0, 1]
     
     return None
+
 
 def get_bert_token_for_string(tokenizer, string):
     token = tokenizer(string)
@@ -85,7 +88,7 @@ if __name__ == "__main__":
         manager.load(manager_ckpt)
 
         for placeholder_string in manager.string_to_token_dict:
-            if not placeholder_string in string_to_token_dict:
+            if placeholder_string not in string_to_token_dict:
                 string_to_token_dict[placeholder_string] = manager.string_to_token_dict[placeholder_string]
                 string_to_param_dict[placeholder_string] = manager.string_to_param_dict[placeholder_string]
 

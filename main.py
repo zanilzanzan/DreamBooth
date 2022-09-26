@@ -1,20 +1,24 @@
-import argparse, os, sys, datetime, glob, importlib, csv
-import numpy as np
+import os
+import sys
+import glob
 import time
-import torch
+import argparse
+import datetime
+import numpy as np
 
+import torch
 import torchvision
 import pytorch_lightning as pl
 
 from packaging import version
 from omegaconf import OmegaConf
-from torch.utils.data import random_split, DataLoader, Dataset, Subset
+from torch.utils.data import random_split, DataLoader, Dataset
 from functools import partial
 from PIL import Image
 
 from pytorch_lightning import seed_everything
 from pytorch_lightning.trainer import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint, Callback, LearningRateMonitor
+from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.distributed import rank_zero_only
 from pytorch_lightning.utilities import rank_zero_info
 
@@ -114,7 +118,7 @@ def get_parser(**parser_kwargs):
         "-s",
         "--seed",
         type=int,
-        default=23,
+        default=42,
         help="seed for seed_everything",
     )
     parser.add_argument(
@@ -149,33 +153,33 @@ def get_parser(**parser_kwargs):
         help="Prepend the final directory in the data_root to the output directory name")
 
     parser.add_argument("--actual_resume", 
-        type=str,
-        required=True,
-        help="Path to model to actually resume from")
+                        type=str,
+                        required=True,
+                        help="Path to model to actually resume from")
 
     parser.add_argument("--data_root", 
-        type=str, 
-        required=True, 
-        help="Path to directory with training images")
+                        type=str,
+                        required=True,
+                        help="Path to directory with training images")
     
     parser.add_argument("--reg_data_root", 
-        type=str, 
-        required=True, 
-        help="Path to directory with regularization images")
+                        type=str,
+                        required=True,
+                        help="Path to directory with regularization images")
 
     parser.add_argument("--embedding_manager_ckpt", 
-        type=str, 
-        default="", 
-        help="Initialize embedding manager from a checkpoint")
+                        type=str,
+                        default="",
+                        help="Initialize embedding manager from a checkpoint")
 
     parser.add_argument("--class_word", 
-        type=str, 
-        default="dog",
-        help="Placeholder token which will be used to denote the concept in future prompts")
+                        type=str,
+                        default="dog",
+                        help="Placeholder token which will be used to denote the concept in future prompts")
 
     parser.add_argument("--init_word", 
-        type=str, 
-        help="Word to use as source for initial token embedding")
+                        type=str,
+                        help="Word to use as source for initial token embedding")
 
     return parser
 
@@ -215,6 +219,7 @@ def worker_init_fn(_):
     else:
         return np.random.seed(np.random.get_state()[1][0] + worker_id)
 
+
 class ConcatDataset(Dataset):
     def __init__(self, *datasets):
         self.datasets = datasets
@@ -224,9 +229,10 @@ class ConcatDataset(Dataset):
 
     def __len__(self):
         return min(len(d) for d in self.datasets)
-    
+
+
 class DataModuleFromConfig(pl.LightningDataModule):
-    def __init__(self, batch_size, train=None, reg = None, validation=None, test=None, predict=None,
+    def __init__(self, batch_size, train=None, reg=None, validation=None, test=None, predict=None,
                  wrap=False, num_workers=None, shuffle_test_loader=False, use_worker_init_fn=False,
                  shuffle_val_dataloader=False):
         super().__init__()
@@ -301,7 +307,7 @@ class DataModuleFromConfig(pl.LightningDataModule):
         return DataLoader(self.datasets["test"], batch_size=self.batch_size,
                           num_workers=self.num_workers, worker_init_fn=init_fn, shuffle=shuffle)
 
-    def _predict_dataloader(self, shuffle=False):
+    def _predict_dataloader(self):
         if isinstance(self.datasets['predict'], Txt2ImgIterableBaseDataset) or self.use_worker_init_fn:
             init_fn = worker_init_fn
         else:
@@ -323,7 +329,7 @@ class SetupCallback(Callback):
 
     def on_keyboard_interrupt(self, trainer, pl_module):
         if trainer.global_rank == 0:
-            print("Summoning checkpoint.")
+            print("[SAVE] Saving the checkpoint...")
             ckpt_path = os.path.join(self.ckptdir, "last.ckpt")
             trainer.save_checkpoint(ckpt_path)
 
@@ -337,12 +343,12 @@ class SetupCallback(Callback):
             if "callbacks" in self.lightning_config:
                 if 'metrics_over_trainsteps_checkpoint' in self.lightning_config['callbacks']:
                     os.makedirs(os.path.join(self.ckptdir, 'trainstep_checkpoints'), exist_ok=True)
-            print("Project config")
+            print("[INFO] Project config")
             print(OmegaConf.to_yaml(self.config))
             OmegaConf.save(self.config,
                            os.path.join(self.cfgdir, "{}-project.yaml".format(self.now)))
 
-            print("Lightning config")
+            print("[INFO] Lightning config")
             print(OmegaConf.to_yaml(self.lightning_config))
             OmegaConf.save(OmegaConf.create({"lightning": self.lightning_config}),
                            os.path.join(self.cfgdir, "{}-lightning.yaml".format(self.now)))
@@ -487,8 +493,8 @@ class CUDACallback(Callback):
         except AttributeError:
             pass
 
-class ModeSwapCallback(Callback):
 
+class ModeSwapCallback(Callback):
     def __init__(self, swap_step=2000):
         super().__init__()
         self.is_frozen = False
@@ -505,8 +511,7 @@ class ModeSwapCallback(Callback):
 
 
 if __name__ == "__main__":
-    # custom parser to specify config files, train, test and debug mode,
-    # postfix, resume.
+    # custom parser to specify config files, train, test and debug mode, postfix, resume.
     # `--key value` arguments are interpreted as arguments to the trainer.
     # `nested.key=value` arguments are interpreted as config parameters.
     # configs are merged from left-to-right followed by command line parameters.
@@ -579,7 +584,7 @@ if __name__ == "__main__":
         trainer_config["accelerator"] = "ddp"
         for k in nondefault_trainer_args(opt):
             trainer_config[k] = getattr(opt, k)
-        if not "gpus" in trainer_config:
+        if "gpus" not in trainer_config:
             del trainer_config["accelerator"]
             cpu = True
         else:
@@ -656,7 +661,7 @@ if __name__ == "__main__":
         if "modelcheckpoint" in lightning_config:
             modelckpt_cfg = lightning_config.modelcheckpoint
         else:
-            modelckpt_cfg =  OmegaConf.create()
+            modelckpt_cfg = OmegaConf.create()
         modelckpt_cfg = OmegaConf.merge(default_modelckpt_cfg, modelckpt_cfg)
         print(f"Merged modelckpt-cfg: \n{modelckpt_cfg}")
         if version.parse(pl.__version__) < version.parse('1.4.0'):
@@ -731,7 +736,7 @@ if __name__ == "__main__":
         trainer_kwargs["max_steps"] = trainer_opt.max_steps
 
         trainer = Trainer.from_argparse_args(trainer_opt, **trainer_kwargs)
-        trainer.logdir = logdir  ###
+        trainer.logdir = logdir
 
         # data
         config.data.params.train.params.data_root = opt.data_root
@@ -741,7 +746,7 @@ if __name__ == "__main__":
 
         data = instantiate_from_config(config.data)
         # NOTE according to https://pytorch-lightning.readthedocs.io/en/latest/datamodules.html
-        # calling these ourselves should not be necessary but it is.
+        # calling these ourselves should not be necessary, but it is.
         # lightning still takes care of proper multiprocessing though
         data.prepare_data()
         data.setup()
@@ -775,13 +780,13 @@ if __name__ == "__main__":
         def melk(*args, **kwargs):
             # run all checkpoint hooks
             if trainer.global_rank == 0:
-                print("Summoning checkpoint.")
+                print("[SAVE] Saving the checkpoint...")
                 ckpt_path = os.path.join(ckptdir, "last.ckpt")
                 trainer.save_checkpoint(ckpt_path)
 
         def divein(*args, **kwargs):
             if trainer.global_rank == 0:
-                import pudb;
+                import pudb
                 pudb.set_trace()
 
         import signal
@@ -796,6 +801,7 @@ if __name__ == "__main__":
             except Exception:
                 melk()
                 raise
+        # Activate the lines below for testing. However, currently it raises a PyTorch Lightning-related error
         # if not opt.no_test and not trainer.interrupted:
         #     trainer.test(model, data)
     except Exception:
