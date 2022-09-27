@@ -1,12 +1,14 @@
-**Disclaimer:** This repository has been forked from [this implementation](https://github.com/XavierXiao/Dreambooth-Stable-Diffusion). Currently, there are no major differences. I am planning to smooth the training process out and add more comprehensive guide to train on a VAST.AI instance.
+**Disclaimer:** This repository has been forked from [this implementation](https://github.com/XavierXiao/Dreambooth-Stable-Diffusion). Please find the instructions to train a
+model on a vast.ai instance below.
 
-# Dreambooth on Stable Diffusion
+# Dreambooth with Stable Diffusion
 
-This is an implementtaion of Google's [Dreambooth](https://arxiv.org/abs/2208.12242) with [Stable Diffusion](https://github.com/CompVis/stable-diffusion). The original Dreambooth is based on [Imagen](https://imagen.research.google/) text-to-image model. However, neither the model nor the pre-trained weights of Imagen is available. To enable people to fine-tune a text-to-image model with a few examples, I implemented the idea of Dreambooth on Stable diffusion.
+This is an implementation of Google's [Dreambooth](https://arxiv.org/abs/2208.12242) with [Stable Diffusion](https://github.com/CompVis/stable-diffusion).
 
-This code repository is based on that of [Textual Inversion](https://github.com/rinongal/textual_inversion). Note that Textual Inversion only optimizes word ebedding, while dreambooth fine-tunes the whole diffusion model.
+The repository is based on that of [Textual Inversion](https://github.com/rinongal/textual_inversion).
+Note that Textual Inversion only optimizes word ebeddings, while DreamBooth fine-tunes the whole diffusion model.
 
-The implementation makes minimum changes over the official codebase of Textual Inversion. In fact, due to lazyness, some components in Textual Inversion, such as the embedding manager, are not deleted, although they will never be used here.
+The implementation makes minimum changes over the official codebase of Textual Inversion.
 
 ## Usage
 
@@ -89,34 +91,64 @@ Generated images with prompt ```a dog on top of sks container```:
 ![](assets/a-dog-on-top-of-sks-container-0023.jpg)
 
 
-## Run a training session on a VAST.AI instance
+## Run a training session on a vast.ai instance
 
-**Important note:** The instructions were directly taken from [this comment](https://github.com/XavierXiao/Dreambooth-Stable-Diffusion/issues/4#issuecomment-1246140407). I have recently experimented with the procedure. In a few days, I will be summarizing all the required steps and update the code for a smooth training. Please stay tuned.
+Setting up the environment, training the model, and downloading/uploading data for one session should cost around $1.
+Make sure to follow the instructions below closely to avoid losing time on the virtual machine.
 
-Training session on VAST.AI costs around $1
+1. Prepare the training and regularization data in advance. Since inference doesn't require that much memory, 
+regularization images can be generated locally if you have GPU machine with about 10GB memory. Use the command below:
 
-1- Prepare your training and regularization data in advance
+```
+python scripts/stable_txt2img.py --ddim_eta 0.0 
+                                 --n_samples 8 
+                                 --n_iter 1 
+                                 --scale 10.0 
+                                 --ddim_steps 100  
+                                 --ckpt /path/to/saved/checkpoint/from/training
+                                 --prompt "photo of a sks <class>" 
+```
 
-2- Pick an (when finding an instance, make sure to select a PyTorch instance config) instance with at least 1 A6000 (cheapest that meets the VRAM reqs, I've found - and 1 is good to start with since you might be spending more time figuring out how to set it up than actually training it). Make sure the download (and upload) speeds are decent, like >100mbps
+2. Essential points for the data:
+     - Having square images for both is important. Otherwise, the resulting images would come out distorted.
+     - Using as little as 8 images for both training and regularization works; however, I use +50 training and +100 regularization images.
+You can go even higher with the numbers.
+     - If the generated regularization images do not represent the class well enough, you can simply gather images from the web.
+3. Register/log in to a vast.ai account.
+4. Under Client/Create section, select an instance with at least one Nvidia RTX A6000. Things to pay attention to while choosing an instance:
+   - Select a PyTorch image (pytorch/pytorch) in Instance Configuration.
+   - Download and upload speeds (Inet Up/Down) should be high enough. +100mbps is ideal.
+   - Select On-Demand option on top of the list. 
+5. Go to Client/Instances section, and once the instance goes online, click on Open. It should load the Jupyter dashboard on your browser. 
+Here, click on New/Terminal to open a terminal session.
+6. Clone the repository: `git clone https://github.com/zanilzanzan/DreamBooth.git`.
+7. Go back to Jupyter dashboard and open the file `DreamBooth/setup_env.sh` and enter your HuggingFace username and password information on the second line.
+The environment setup process downloads the Stable Diffusion model `sd-v1-4-full-ema.ckpt` from HuggingFace, and you need to provide your credentials
+to be able to access the file. If you don't have an HuggingFace account, please go ahead and create one. Note: If there is a more secure download method,
+please let me know. Save the edited file (ctrl+s).
+8. Head back to the terminal session, cd into the project directory: `cd DreamBooth`, and run the environment setup script: `bash setup_env.sh`.
+This will download the necessary files, install required software, and set up the conda environment. Installation takes a while, please be patient.
+9. Once the script finishes, activate the conda environment: `conda activate ldm`.
+10. Make sure that the training and regularization data are transferred. If you chose to generate the regularization images on the VM, plese run the
+inference command provided in the first step.
+11. Now you can start training with the following command:
 
-3. Go in and open a terminal session
+```
+python main.py --base configs/stable-diffusion/v1-finetune_unfrozen.yaml
+               -t
+               --gpus 0,
+               --actual_resume sd-v1-4-full-ema.ckpt 
+               -n <whatever you want this training to be called> 
+               --data_root <the relative path to your training images> 
+               --reg_data_root <the relative path to your regularization images> 
+               --class_word <the word you used to get for regularization data>
+```
+11. Points to keep in mind, before starting a training session:
+    - Modify `max_steps` in the config file `configs/stable-diffusion/v1-finetune_unfrozen.yaml` for the total number of iterations.
+Some found that 1000 steps is the sweet spot, but for portraits 3000 steps created wonders in my case.
+    - In the current implementation, the latest checkpoint is saved in every 500 iterations. The checkpoint can be found 
+in `logs/<experiment_name>/checkpoints/` as `last.ckpt`.
+12. After training is done, switch to Jupyter dashboard, find your model file, and simply download it. If your file doesn't 
+appear where it is supposed to, you can move the model file to the main project directory using the terminal: 
+`mv /workspace/DreamBooth/logs/<experiment_name>/checkpoints/last.ckpt /workspace/DreamBooth`. Then it should be visible.
 
-4. Clone this repository: `git clone https://github.com/zanilzanzan/DreamBooth.git`
-
-5. cd into the directory cd Dreambooth-Stable-Diffusion and make a conda environment for it `conda env create -f environment.yaml` this will take a lil' while
-
-6. While that's happening, create a new terminal instance and pull down the SD EMA model, make sure you're in the project directory (Dreambooth-Stable...). Easiest way to do this is download it from hugging face `wget --http-user=USERNAME --http-password=PASSWORD https://huggingface.co/CompVis/stable-diffusion-v-1-4-original/resolve/main/sd-v1-4-full-ema.ckpt`, you should use an API key for a more secure method of doing so, but just for the ease of use for anyone unfamiliar
-
-7. While these two things are going on, you can use the time to go and upload your training/regularization data into some new subfolders in the project. Something like /Dreambooth-Stable-Diffusion/training or something
-
-8. When the conda environment is set up, initialize conda with conda init bash, then reset the terminal with reset, or create a new terminal session
-
-9. Navigate to the project directory again (Dreambooth-Stable...) if you aren't there already, and activate the environment with conda activate ldx < or whatever the environment was called
-
-10. You should be ready to train! `python main.py --base configs/stable-diffusion/v1-finetune_unfrozen.yaml -t --actual_resume sd-v1-4-full-ema.ckpt -n <whatever you want this training to be called> --gpus 0, --data_root <the relative path to your training images> --reg_data_root <the relative path to your regularization images> --class_word <the word you used to get for regularization data>`. Note that this will map your training to the default `sks` prompt, so go change that in the personalized.py file if you want.
-
-12. Let it roll, should be a bit over 1 it/s on 1 A6000.
-
-13. After that's all done, all that's left is to download your model. I've run into issues with the vast.ai frontend and can't actually navigate into the /logs/xx/checkpoints folder, so if you hit this, try moving it out. In a terminal, cd into the checkpoints folder and do a mv final.ckpt .. to move it back a directory, so it should now be selectable and you can download it!
-
-14. Alternatively, if you have a bad net connection, you could upload it to google drive to save some time running the instance - look into the 'gdrive' github repo to install this on the ubuntu CLI.
