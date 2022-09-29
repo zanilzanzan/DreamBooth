@@ -137,7 +137,7 @@ inference command provided in the first step.
 python main.py --base configs/stable-diffusion/v1-finetune_unfrozen.yaml
                -t
                --gpus 0,
-               --actual_resume sd-v1-4-full-ema.ckpt 
+               --actual_resume ./weights/sd-v1-4-full-ema.ckpt 
                -n <whatever you want this training to be called> 
                --data_root <the relative path to your training images> 
                --reg_data_root <the relative path to your regularization images> 
